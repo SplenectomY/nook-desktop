@@ -66,5 +66,7 @@
     "(saves space, but no offline)": "(ahorra espacio, fuera de linea no funcionará)",
     "tip: you can use the mouse wheel to adjust notes!": "consejo: puedes usar la rueda del mouse para ajustar las notas",
     "Nook GitHub": "Nook GitHub",
-    "saved!": "guardado!"
+    "saved!": "guardado!",
+    "Use realtime weather": "Usar el clima en tiempo real",
+    "Weather api code": "Código API de WeatherAPI.com"
 }
