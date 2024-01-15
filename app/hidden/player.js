@@ -5,6 +5,13 @@ const superagent = require('superagent')
 const Wad = window.Wad
 const AudioContext = window.AudioContext
 const kkSongs = require('../kk.json')
+const logger = require('electron-log')
+const weatherCodes = require('../weatherCodes.json')
+const weather = Object.freeze({
+  Sunny: Symbol('sunny'),
+  Rainy: Symbol('rainy'),
+  Snowy: Symbol('snowy')
+})
 
 const baseUrl = 'https://d17orwheorv96d.cloudfront.net'
 let chime
@@ -38,6 +45,9 @@ let openOnStartup
 let preferNoDownload
 let latestVersion
 let currentVersion
+let useRealtimeWeather
+let currentWeather
+let weatherApiCode
 
 const tunes = [
   'G0',
@@ -223,6 +233,7 @@ const kkEnded = () => {
 }
 
 const playRain = async () => {
+  if (!canPlayRain()) return
   const url = await getUrl(`${baseUrl}/rain/${gameRain ? 'game-rain' : peacefulRain ? 'no-thunder-rain' : 'rain'}.ogg`)
   if (!url) return
   const context = new AudioContext()
@@ -261,7 +272,33 @@ const timeCheck = async () => {
         ipc.send('toWindow', ['updateGame', game])
       }
 
-      const gameUrl = game === 'random' ? games[~~(Math.random() * games.length)] : game
+      if (useRealtimeWeather) {
+        await updateRealtimeWeather()
+        if (currentWeather === weather.Rainy && !rain) {
+          playRain()
+        } else if (currentWeather !== weather.Rainy && rain) {
+          stopAudio('rain')
+        }
+      }
+
+      let gameUrl
+
+      if (game === 'random') {
+        if (useRealtimeWeather) {
+          // await updateRealtimeWeather()
+          let weatherAppropriateGames
+          if (currentWeather === weather.Rainy || currentWeather === weather.Snowy) {
+            weatherAppropriateGames = games.filter(g => g.endsWith(currentWeather.toString().toLowerCase()))
+          } else {
+            weatherAppropriateGames = games.filter(g => !g.endsWith('snowy') && !g.endsWith('rainy'))
+          }
+          gameUrl = weatherAppropriateGames[~~(Math.random() * weatherAppropriateGames.length)]
+        } else {
+          gameUrl = games[~~(Math.random() * games.length)]
+        }
+      } else {
+        gameUrl = game
+      }
       await playSound(await getUrl(`${baseUrl}/${gameUrl}/${gameUrl === 'kk-slider-desktop' ? kkEnabled[~~(Math.random() * kkEnabled.length)] : gameUrl === 'pocket-camp' ? hourToPocketCamp(hour) : hour}.ogg`))
       resolve('played')
     }
@@ -294,6 +331,10 @@ const getUrl = async (oldUrl) => {
   }
 
   return `${userSettingsPath}/sound/${newUrl}.ogg`
+}
+
+const canPlayRain = function () {
+  return (useRealtimeWeather && currentWeather === weather.Rainy) || !currentWeather || !useRealtimeWeather
 }
 
 const handleIpc = async (event, arg) => {
@@ -399,6 +440,24 @@ const handleIpc = async (event, arg) => {
   } else if (command === 'lang') {
     lang = arg[0]
     storage.set('lang', { lang: arg[0] })
+  } else if (command === 'useRealtimeWeather') {
+    useRealtimeWeather = arg[0]
+    storage.set('useRealtimeWeather', { enabled: arg[0] })
+    if (!useRealtimeWeather) {
+      currentWeather = undefined
+    }
+    hour = null
+    timeCheck()
+  } else if (command === 'weatherApiCode') {
+    weatherApiCode = arg[0]
+    storage.set('weatherApiCode', arg[0])
+    if (useRealtimeWeather) {
+      hour = null
+      timeCheck()
+    }
+  } else if (command === 'updateRealtimeWeather' && useRealtimeWeather) {
+    logger.info('Attempting to update realtime weather')
+    await updateRealtimeWeather()
   }
 }
 
@@ -490,6 +549,8 @@ const doMain = () => {
   kkSaturday = storage.getSync('kkSaturday').enabled
   openOnStartup = storage.getSync('openOnStartup').enabled
   latestVersion = storage.getSync('latestVersion').version
+  useRealtimeWeather = storage.getSync('useRealtimeWeather').enabled
+  weatherApiCode = storage.getSync('weatherApiCode')
   let showChangelog = false
 
   offlineFiles = keys.filter(e => e.includes('meta-') && !e.includes('meta-kk-slider') && !e.includes('meta-rain')).length
@@ -534,8 +595,9 @@ const doMain = () => {
       'zZz'
     ]
   }
+  if (useRealtimeWeather === undefined) useRealtimeWeather = false
 
-  ipc.send('toWindow', ['configs', { soundVol: soundVol * 100, rainVol: rainVol * 100, grandFather, game, lang, offlineFiles, offlineKKFiles, tune, tuneEnabled, preferNoDownload, paused, gameRain, peacefulRain, kkEnabled, kkSaturday, openOnStartup, showChangelog }])
+  ipc.send('toWindow', ['configs', { soundVol: soundVol * 100, rainVol: rainVol * 100, grandFather, game, lang, offlineFiles, offlineKKFiles, tune, tuneEnabled, preferNoDownload, paused, gameRain, peacefulRain, kkEnabled, kkSaturday, openOnStartup, showChangelog, useRealtimeWeather, weatherApiCode }])
 
   superagent
     .get('https://cms.mat.dog/getSupporters')
@@ -755,6 +817,53 @@ const playBeep = async (note, delay) => {
       }, delay)
     }
   })
+}
+
+const updateRealtimeWeather = async () => {
+  logger.info('Updating realtime weather using api key ' + weatherApiCode)
+  if (!weatherApiCode) return
+
+  const url = `http://api.weatherapi.com/v1/current.json?key=${weatherApiCode}&q=auto:ip&aqi=no`
+
+  const response = await fetch(url)
+  const json = await response.json()
+  if (response.ok) {
+    switch (response.status) {
+      case 200: {
+        logger.info(json.current.condition)
+        const weatherCode = json.current.condition.code
+        const currentWeatherData = weatherCodes.find(x => x.code === weatherCode)
+        switch (currentWeatherData.music) {
+          case 'Sunny':
+            currentWeather = weather.Sunny
+            break
+          case 'Rainy':
+            currentWeather = weather.Rainy
+            break
+          case 'Snowy':
+            currentWeather = weather.Snowy
+            break
+        }
+      }
+        ipc.send('toWindow', ['currentWeather', json.current.condition])
+        break
+      case 401:
+        currentWeather = undefined
+        ipc.send('toWindow', ['error', 'Error: Invalid API code'])
+        break
+      case 403:
+        currentWeather = undefined
+        ipc.send('toWindow', ['error', 'Error: Quota exceeded or API disabled'])
+        break
+      default:
+        currentWeather = undefined
+        ipc.send('toWindow', ['error', 'Error: ' + response.status])
+        break
+    }
+  } else {
+    logger.info(json)
+    ipc.send('toWindow', ['error', 'Error: No internet connection'])
+  }
 }
 
 ipc.on('toPlayer', handleIpc)

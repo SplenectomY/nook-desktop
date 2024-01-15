@@ -1,3 +1,4 @@
+const logger = require('electron-log')
 const request = require('superagent')
 const uuid = require('uuid')
 const ipc = require('electron').ipcRenderer
@@ -134,6 +135,20 @@ const template = `
           <label>
               <input class="rains" id="gameRain" type="checkbox"/>
               <span data-i18n="Use game rain sound"></span>
+          </label>
+          <label>
+              <input id="useRealtimeWeather" type="checkbox"/>
+              <span data-i18n="Use realtime weather"></span>
+          </label>
+          <label>
+              <input id="weatherApiCode" type="password"/>
+              <span data-i18n="Weather api code"></span>
+          </label>
+          <label>
+              <span data-i18n="Your current weather:"></span>
+          </label>
+          <label>
+              <span id="currentWeather">...</span>
           </label>
           <label>
               <input class="rains" id="peacefulRain" type="checkbox"/>
@@ -392,6 +407,8 @@ const changeLang = (lang, manual, arg) => {
       $('#preferNoDownload').prop('checked', arg.preferNoDownload)
       $('#kkSaturday').prop('checked', arg.kkSaturday)
       $('#openOnStartup').prop('checked', arg.openOnStartup)
+      $('#useRealtimeWeather').prop('checked', arg.useRealtimeWeather)
+      $('#weatherApiCode').val(arg.weatherApiCode)
 
       arg.kkEnabled.forEach((song) => {
         $(`.kk-customize input[data-title="${song}"]`).prop('checked', true)
@@ -552,6 +569,15 @@ const exec = () => {
     ipc.send('toPlayer', ['gameRain', e.target.checked])
     $('#peacefulRain').prop('checked', false)
     setCooldown()
+  })
+
+  $('.settings #useRealtimeWeather').on('change', (e) => {
+    ipc.send('toPlayer', ['useRealtimeWeather', e.target.checked])
+    setCooldown()
+  })
+
+  $('#weatherApiCode').on('change', (e) => {
+    ipc.send('toPlayer', ['weatherApiCode', $('#weatherApiCode').val()])
   })
 
   $('.settings #peacefulRain').on('change', (e) => {
@@ -750,6 +776,8 @@ $(document).ready(() => {
     } else if (arg[0] === 'pause') {
       paused = true
       pause(true)
+    } else if (arg[0] === 'currentWeather') {
+      $('.settings #currentWeather').html(`<img style="width:25px; height:25px; object-position: 50% 50%; object-fit: none;" src='https:${arg[1].icon}' /> ` + arg[1].text)
     }
   })
 })
