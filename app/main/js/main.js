@@ -1,4 +1,4 @@
-const logger = require('electron-log')
+// const logger = require('electron-log')
 const request = require('superagent')
 const uuid = require('uuid')
 const ipc = require('electron').ipcRenderer

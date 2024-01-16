@@ -287,8 +287,10 @@ const timeCheck = async () => {
         if (useRealtimeWeather) {
           // await updateRealtimeWeather()
           let weatherAppropriateGames
-          if (currentWeather === weather.Rainy || currentWeather === weather.Snowy) {
-            weatherAppropriateGames = games.filter(g => g.endsWith(currentWeather.toString().toLowerCase()))
+          if (currentWeather === weather.Rainy) {
+            weatherAppropriateGames = games.filter(g => g.endsWith('rainy'))
+          } else if (currentWeather === weather.Snowy) {
+            weatherAppropriateGames = games.filter(g => g.endsWith('snowy'))
           } else {
             weatherAppropriateGames = games.filter(g => !g.endsWith('snowy') && !g.endsWith('rainy'))
           }
