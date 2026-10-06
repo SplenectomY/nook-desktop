@@ -1,15 +1,17 @@
 {
   "name": "nook-desktop",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "Nook desktop",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "standard --fix && electron .",
+    "start": "electron .",
+    "lint": "standard",
+    "test": "standard && node --test test/*.test.js",
+    "test:unit": "node --test test/*.test.js",
+    "screenshots": "env-cmd -f scripts/screenshots.env electron .",
     "pack": "electron-builder --dir",
     "dist": "env-cmd electron-builder",
-    "release": "env-cmd electron-builder",
-    "lint": "standard"
+    "release": "env-cmd electron-builder"
   },
   "author": "mn6",
   "license": "ISC",
@@ -66,7 +68,6 @@
     "electron-log": "^4.4.8",
     "electron-updater": "^5.3.0",
     "env-cmd": "^10.1.0",
-    "fs": "^0.0.1-security",
     "superagent": "^8.0.3",
     "uuid": "^9.0.0"
   },
@@ -75,7 +76,6 @@
   },
   "standard": {
     "ignore": [
-      "howler.min.js",
       "wad.js"
     ]
   }

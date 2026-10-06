@@ -1,4 +1,14 @@
 {
+    "1.1.0": [
+        "Realtime weather now switches the hourly music of your chosen game to its rainy or snowy version (and random mode only picks fitting games)",
+        "New weather report page: current conditions, feels like, humidity, wind, UV, precipitation, sunrise/sunset, the next 12 hours and a 3-day forecast",
+        "Weather strip on the home page, \u00b0C/\u00b0F toggle, and clearer error messages for API key problems",
+        "K.K. Slider now sits on stage and plays his guitar whenever his music is on, with a next-song button",
+        "Now-playing line shows the game and track currently playing",
+        "Weather refreshes every 15 minutes instead of only on the hour, and the request uses HTTPS",
+        "Fixed freezing drizzle not counting as rain, a broken saved API key check, and leaked audio contexts",
+        "Big code cleanup: the player and the window are split into small modules with unit tests"
+    ],
     "1.0.10": [
         "Fixed New Leaf 9am and 5pm loops",
         "Added Population Growing - Rainy Day, will always play the same tune",

@@ -1,0 +1,136 @@
+/* The K.K. Slider stage shown on the home page while K.K. is playing. */
+
+.kk-scene {
+    width: 240px;
+    margin: 6px auto 0 auto;
+    text-align: center;
+}
+
+.kk-scene svg {
+    width: 240px;
+    height: 130px;
+    display: block;
+    overflow: visible;
+}
+
+.kk-fur {
+    fill: #f3efe4;
+    stroke: #cfc8b3;
+    stroke-width: 1.4;
+}
+
+.kk-ink {
+    fill: none;
+    stroke: #1b1b1b;
+    stroke-linecap: round;
+}
+
+.kk-arm-line {
+    fill: none;
+    stroke: #f3efe4;
+    stroke-width: 7;
+    stroke-linecap: round;
+}
+
+.kk-body {
+    transform-origin: 120px 108px;
+    animation: kk-bob 1.1s ease-in-out infinite;
+}
+
+.kk-head {
+    transform-origin: 120px 62px;
+    animation: kk-tilt 2.2s ease-in-out infinite;
+}
+
+.kk-arm {
+    transform-origin: 138px 72px;
+    animation: kk-strum 0.55s ease-in-out infinite;
+}
+
+.kk-mouth {
+    transform-origin: 120px 61px;
+    animation: kk-sing 1.1s ease-in-out infinite;
+}
+
+.kk-note {
+    font-size: 15px;
+    font-weight: bold;
+    fill: #fff0c7;
+    opacity: 0;
+    animation: kk-float 2.4s ease-out infinite;
+}
+
+.kk-note.n2 {
+    fill: #aaf559;
+    animation-delay: 0.8s;
+}
+
+.kk-note.n3 {
+    font-size: 12px;
+    animation-delay: 1.6s;
+}
+
+.kk-caption {
+    margin-top: 2px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.kk-title {
+    color: #fff0c7;
+    font-weight: bold;
+}
+
+.kk-song {
+    color: white;
+}
+
+button.kk-skip {
+    border: 0;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    font-weight: bold;
+    font-size: 10px;
+    padding: 3px 10px;
+    margin-top: 3px;
+    cursor: pointer;
+    font-family: OpenSans;
+}
+
+@keyframes kk-bob {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-2px) rotate(-1deg); }
+}
+
+@keyframes kk-tilt {
+    0%, 100% { transform: rotate(-4deg); }
+    50% { transform: rotate(4deg); }
+}
+
+@keyframes kk-strum {
+    0%, 100% { transform: rotate(-16deg); }
+    50% { transform: rotate(10deg); }
+}
+
+@keyframes kk-sing {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.8); }
+}
+
+@keyframes kk-float {
+    0% { opacity: 0; transform: translate(0, 10px) rotate(-8deg); }
+    20% { opacity: 1; }
+    80% { opacity: 0.6; }
+    100% { opacity: 0; transform: translate(14px, -34px) rotate(10deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kk-body, .kk-head, .kk-arm, .kk-mouth, .kk-note {
+        animation-duration: 0s;
+    }
+    .kk-note { opacity: 0.8; }
+}

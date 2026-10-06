@@ -1,194 +1,154 @@
-const {
-  app,
-  BrowserWindow,
-  Tray,
-  nativeImage,
-  Menu,
-  ipcMain,
-  shell,
-  powerMonitor
-} = require('electron')
-
-const os = require('os')
-const storage = require('electron-json-storage')
+/**
+ * Electron main process: owns the visible window, the hidden player window,
+ * the tray icon and the handful of privileged actions the windows ask for.
+ */
+const { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, shell, powerMonitor } = require('electron')
 const path = require('path')
 const fs = require('fs')
-
-const userSettingsPath = path.join(app.getPath('userData'), 'userSettings') // change path for userSettings
-storage.setDataPath(userSettingsPath)
-const assets = app.isPackaged
-  ? path.join(process.resourcesPath, '/build/icons/')
-  : path.join(__dirname, '/build/icons/')
-
+const storage = require('electron-json-storage')
 const { autoUpdater } = require('electron-updater')
+const log = require('electron-log')
 
-const progress = (win, num) => {
-  win.webContents.send('toWindow', ['bar', num])
+// Development: keep a throwaway profile apart from the real one.
+if (process.env.NOOK_USER_DATA) app.setPath('userData', path.resolve(process.env.NOOK_USER_DATA))
+
+const userSettingsPath = path.join(app.getPath('userData'), 'userSettings')
+storage.setDataPath(userSettingsPath)
+
+const iconDir = app.isPackaged
+  ? path.join(process.resourcesPath, 'build', 'icons')
+  : path.join(__dirname, 'build', 'icons')
+
+/** The only pages the renderer may ask the OS browser to open. */
+const EXTERNAL_LINKS = {
+  patreon: 'https://www.patreon.com/mattu',
+  github: 'https://nook.camp',
+  weatherapi: 'https://www.weatherapi.com/signup.aspx'
 }
 
-let myWindow
-let playing = 'Nook - playing nothing!'
+const windowOptions = {
+  webPreferences: {
+    backgroundThrottling: false,
+    nodeIntegration: true,
+    contextIsolation: false
+  }
+}
 
-const createWindow = () => {
-  let tray
-  const win = new BrowserWindow({
+let mainWindow = null
+let playerWindow = null
+let tray = null
+let playingLabel = 'Nook - playing nothing!'
+
+const destroyTray = () => {
+  if (tray && !tray.isDestroyed()) tray.destroy()
+  tray = null
+}
+
+const quit = () => {
+  destroyTray()
+  app.exit()
+}
+
+const showFromTray = () => {
+  destroyTray()
+  mainWindow.restore()
+  mainWindow.show()
+  mainWindow.setSkipTaskbar(false)
+  if (app.dock) app.dock.show()
+}
+
+const hideToTray = () => {
+  destroyTray()
+  if (app.dock) app.dock.hide()
+  mainWindow.setSkipTaskbar(true)
+  mainWindow.hide()
+
+  const image = process.platform === 'darwin' ? 'nookTemplate.png' : 'nookTray.png'
+  tray = new Tray(nativeImage.createFromPath(path.join(iconDir, image)))
+  tray.setToolTip(playingLabel)
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: 'Exit', click: quit },
+    { label: 'Show', click: showFromTray }
+  ]))
+  tray.on('click', showFromTray)
+}
+
+const sendToPlayer = (...args) => playerWindow.webContents.send('toPlayer', args)
+const sendToWindow = (...args) => mainWindow.webContents.send('toWindow', args)
+
+const clearSettings = async () => {
+  sendToWindow('bar', 1)
+  await new Promise(resolve => storage.clear(resolve))
+  sendToWindow('bar', 50)
+  await fs.promises.rm(path.join(userSettingsPath, 'sound'), { recursive: true, force: true })
+  sendToWindow('bar', 100)
+  app.relaunch()
+  app.exit()
+}
+
+const createWindows = () => {
+  mainWindow = new BrowserWindow({
+    ...windowOptions,
     width: 400,
     height: 500,
     autoHideMenuBar: true,
     transparent: true,
     frame: false,
     resizable: false,
-    icon: './icons/nook.png',
-    webPreferences: {
-      backgroundThrottling: false,
-      nodeIntegration: true,
-      contextIsolation: false
-    }
+    icon: path.join(iconDir, 'nook.png')
   })
+  mainWindow.loadFile('./app/main/index.html')
+  mainWindow.on('close', quit)
 
-  win.loadFile('./app/main/index.html')
-
-  const show = () => {
-    win.restore()
-    win.show()
-    win.setSkipTaskbar(false)
-    if (app.dock) app.dock.show()
-    if (tray) tray.destroy()
-  }
-
-  const exit = () => {
-    if (tray) tray.destroy()
-    app.exit()
-  }
-
-  const close = (event) => {
-    if (tray) tray.destroy()
-    if (app.dock) app.dock.hide()
-    event.preventDefault()
-    win.setSkipTaskbar(true)
-    win.hide()
-
-    const macTrayImage = 'nookTemplate.png'
-    const trayImage = 'nookTray.png'
-    const trayIcon =
-      os.platform() === 'darwin'
-        ? nativeImage.createFromPath(path.join(assets, macTrayImage))
-        : nativeImage.createFromPath(path.join(assets, trayImage))
-    const trayMenu = Menu.buildFromTemplate([
-      {
-        label: 'Exit',
-        click: exit
-      },
-      {
-        label: 'Show',
-        click: show
-      }
-    ])
-    tray = new Tray(trayIcon)
-    tray.setToolTip(playing)
-    tray.setContextMenu(trayMenu)
-    tray.addListener('click', show)
-  }
-
-  ipcMain.addListener('patreon', () => {
-    shell.openExternal('https://www.patreon.com/mattu')
-  })
-  ipcMain.addListener('github', () => {
-    shell.openExternal('https://nook.camp')
-  })
-
-  ipcMain.addListener('min', close)
-  ipcMain.addListener('close', exit)
-
-  win.on('close', exit)
-
-  const hiddenWin = new BrowserWindow({
+  playerWindow = new BrowserWindow({
+    ...windowOptions,
     width: 500,
     height: 500,
     show: false,
-    webPreferences: {
-      backgroundThrottling: false,
-      nodeIntegration: true,
-      contextIsolation: false
-    },
-    skipTaskbar: false,
+    skipTaskbar: true,
     excludedFromShownWindowsMenu: true,
     focusable: false
   })
-  hiddenWin.setSkipTaskbar(true)
-  hiddenWin.loadFile('./app/hidden/index.html')
+  playerWindow.loadFile('./app/hidden/index.html')
 
-  powerMonitor.addListener('suspend', () => {
-    hiddenWin.webContents.send('toPlayer', ['pauseIfPlaying'])
+  ipcMain.on('min', hideToTray)
+  ipcMain.on('close', quit)
+  ipcMain.on('clearSettings', () => clearSettings().catch(err => log.error(err)))
+  ipcMain.on('openExternal', (event, key) => {
+    if (EXTERNAL_LINKS[key]) shell.openExternal(EXTERNAL_LINKS[key])
+  })
+  ipcMain.on('openOnStartup', (event, [openAtLogin]) => app.setLoginItemSettings({ openAtLogin }))
+  ipcMain.on('playerLoaded', () => sendToPlayer('userSettingsPath', userSettingsPath, app.getVersion()))
+  ipcMain.on('toPlayer', (event, args) => sendToPlayer(...args))
+  ipcMain.on('toWindow', (event, args) => sendToWindow(...args))
+  ipcMain.on('playing', (event, [game, track]) => {
+    playingLabel = game ? `Nook - playing ${game} (${track})!` : 'Nook - playing nothing!'
+    if (tray && !tray.isDestroyed()) tray.setToolTip(playingLabel)
   })
 
-  ipcMain.on('playerLoaded', () => {
-    hiddenWin.webContents.send('toPlayer', [
-      'userSettingsPath',
-      userSettingsPath,
-      app.getVersion()
-    ])
-  })
+  powerMonitor.on('suspend', () => sendToPlayer('pauseIfPlaying'))
 
-  ipcMain.on('openOnStartup', (event, args) => {
-    app.setLoginItemSettings({
-      openAtLogin: args[0]
-    })
-  })
-
-  ipcMain.on('toPlayer', (event, args) => {
-    hiddenWin.webContents.send('toPlayer', args)
-  })
-
-  ipcMain.on('toWindow', (event, args) => {
-    win.webContents.send('toWindow', args)
-  })
-
-  ipcMain.addListener('clearSettings', async (event) => {
-    progress(win, 1)
-    await new Promise((resolve) => storage.clear((err) => resolve(err)))
-    progress(win, 50)
-    await new Promise((resolve) =>
-      fs.rm(
-        userSettingsPath + '/sound',
-        { recursive: true, force: true },
-        (err) => resolve(err)
-      )
-    )
-    progress(win, 100)
-
-    app.relaunch()
-    app.exit()
-  })
-
-  ipcMain.on('playing', (event, args) => {
-    if (args[0]) playing = `Nook - playing ${args[0]} (${args[1]})!`
-    else playing = 'Nook - playing nothing!'
-    if (tray && !tray.isDestroyed()) tray.setToolTip(playing)
-  })
+  // Development hook used by `npm run screenshots` (see scripts/).
+  if (process.env.NOOK_DEV_DRIVER) {
+    require(path.resolve(process.env.NOOK_DEV_DRIVER))({ app, mainWindow, playerWindow })
+  }
 }
 
 app.disableHardwareAcceleration()
+if (process.platform === 'win32') app.setAppUserModelId(app.name)
 
-if (process.platform === 'win32') {
-  app.setAppUserModelId(app.name)
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (!mainWindow) return
+    if (!mainWindow.isVisible()) showFromTray()
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  })
+  app.whenReady().then(createWindows)
 }
 
-const gotTheLock = app.requestSingleInstanceLock()
-if (!gotTheLock) app.quit()
-else {
-  app.on('second-instance', (event, commandLine, workingDirectory, additionalData) => {
-    if (myWindow) {
-      if (myWindow.isMinimized()) myWindow.restore()
-      myWindow.focus()
-    }
-  })
-
-  app.whenReady().then(() => {
-    myWindow = createWindow()
-  })
-}
-
-autoUpdater.logger = require('electron-log')
+autoUpdater.logger = log
 autoUpdater.logger.transports.file.level = 'info'
-autoUpdater.checkForUpdatesAndNotify()
+autoUpdater.checkForUpdatesAndNotify().catch(err => log.warn('update check failed', err && err.message))

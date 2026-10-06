@@ -6,10 +6,6 @@
     font-family: FaSolid;
     src: url(../font/fa-solid.otf);
 }
-@font-face {
-    font-family: FaBrands;
-    src: url(../font/fa-brands.otf);
-}
 
 html, * {
     font-family: OpenSans;
@@ -104,7 +100,8 @@ html {
     -webkit-app-region: no-drag;
 }
 
-button#patreon {
+button#patreon,
+button#changelog {
     margin-top: 10px;
     font-weight: bold;
     border: none;
@@ -118,17 +115,7 @@ button#patreon {
 }
 
 button#changelog {
-    margin-top: 10px;
-    font-weight: bold;
-    border: none;
-    background: none;
-    height: 30px;
-    color: white;
-    cursor: pointer;
-    width: 70px;
-    font-size: 10px;
     margin-left: -14px;
-    font-family: OpenSans;
 }
 
 button#clearSettings {
@@ -167,36 +154,8 @@ p.offline {
     margin-top: 25px;
 }
 
-button.download {
-    margin-top: 10px;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.3);
-    height: 30px;
-    color: rgb(255, 255, 255);
-    cursor: pointer;
-    width: 170px;
-    padding: 0;
-    font-size: 10px;
-    font-family: OpenSans;
-}
-
-.save-tune-btn button {
-    margin-top: 10px;
-    font-weight: bold;
-    border: none;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.3);
-    height: 30px;
-    color: rgb(255, 255, 255);
-    cursor: pointer;
-    width: 62px;
-    padding: 0;
-    font-size: 10px;
-    font-family: OpenSans;
-}
-
+button.download,
+.save-tune-btn button,
 .kk-btn button {
     margin-top: 10px;
     font-weight: bold;
@@ -206,10 +165,21 @@ button.download {
     height: 30px;
     color: rgb(255, 255, 255);
     cursor: pointer;
-    width: auto;
-    padding: 0 7px;
+    padding: 0;
     font-size: 10px;
     font-family: OpenSans;
+}
+
+button.download {
+    width: 170px;
+}
+
+.save-tune-btn button {
+    width: 62px;
+}
+
+.kk-btn button {
+    padding: 0 7px;
 }
 
 .tune-settings .tips {
@@ -341,24 +311,9 @@ select optgroup {
     color: rgb(150, 150, 150);
 }
 
-.tune-settings p {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 15px;
-}
-
-.changelog p {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 15px;
-}
-
-.kk-customize p {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 15px;
-}
-
+.tune-settings p,
+.changelog p,
+.kk-customize p,
 .settings p {
     text-align: center;
     font-weight: bold;
@@ -479,18 +434,7 @@ select optgroup {
     align-items: baseline;
 }
 
-button.towntune-custom {
-    border: 0;
-    border-radius: 5px;
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-    font-weight: bold;
-    font-size: 11px;
-    margin-left: 5px;
-    padding: 3px 10px;
-    cursor: pointer;
-}
-
+button.towntune-custom,
 button#kkCustomize {
     border: 0;
     border-radius: 5px;
